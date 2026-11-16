@@ -31,6 +31,3 @@ DB_SQLITE/
 *.png
 run_voucher_creation.py.venv/
 run_voucher_creation.py.venv/
-!uv.lock
-
-Main_agent.py

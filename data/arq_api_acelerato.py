@@ -8,20 +8,17 @@ from time import sleep
 import base64
 
 
-from pathlib import Path
-from data.sistemas import ACELERATO_EMAIL_SOLICITANTE, ACELERATO_URL
-
-# Configuração de ambiente
-BASE_DIR = Path(__file__).resolve().parent.parent
-ENV_PATH = BASE_DIR / '.env'
-load_dotenv(dotenv_path=ENV_PATH)
-for key, value in dotenv_values(ENV_PATH).items():
-    if value is not None:
-        os.environ[key] = value
+#  importações
+os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+os.listdir()
+load_dotenv()
+#  opcional para jupyther
+for key, value in dotenv_values('.env').items():
+    os.environ[key] = value
 
 EMAIL = os.getenv('EMAIL')
-TOKEN = os.getenv('TOKEN')
-TIMEOUT_EM_SEGUNDOS = 30
+TOKEN= os.getenv('TOKEN')
+ACELERATO_URL = os.getenv('ACELERATO_URL')
 
 
 def get_chamados_for_API():
@@ -32,7 +29,7 @@ def get_chamados_for_API():
     '''
 
     EQUIPE_TECNOLOGIA_ID = '19'
-    BASE_URL = f'{ACELERATO_URL}/api/publica/v2/chamados'
+    BASE_URL = f"{ACELERATO_URL}/api/publica/v2/chamados"
 
     #  parâmetros
     params = {
@@ -51,7 +48,6 @@ def get_chamados_for_API():
     #  base da API
     response = requests.get(
         BASE_URL,
-        timeout=TIMEOUT_EM_SEGUNDOS,
         auth=HTTPBasicAuth(EMAIL,TOKEN),
         params=params,
     )
@@ -116,12 +112,11 @@ def criar_chamado_acelerato( titulo, descricao):
             "categoriaKey": 0
         },
         "solicitante": {
-            "email": ACELERATO_EMAIL_SOLICITANTE
+            "email": os.getenv('ACELERATO_EMAIL_SOLICITANTE')
         }
     }
     response = requests.post(
         url,
-        timeout=TIMEOUT_EM_SEGUNDOS,
         headers=headers,
         auth=HTTPBasicAuth(EMAIL, TOKEN),
         json=payload
@@ -136,7 +131,7 @@ def validar_chamado_acelerato(ticketKey):
     """Coloca o chamado em validação na API do Acelerato  Adiciona a IA como Agente"""
     url = f"{ACELERATO_URL}/api/publica/chamados/{ticketKey}"
     payload = {"kanbanStatus": {"kanbanStatusKey": 39}, "agente":{"usuarioKey":822}}
-    response = requests.put(url, timeout=TIMEOUT_EM_SEGUNDOS, auth=HTTPBasicAuth(EMAIL, TOKEN), headers={"Content-Type": "application/json"}, json=payload)
+    response = requests.put(url, auth=HTTPBasicAuth(EMAIL, TOKEN), headers={"Content-Type": "application/json"}, json=payload)
     print(f"Status: {response.status_code}", "Chamado em Validação!" if response.status_code in [200, 201, 204] else f"Erro: {response.text}")
     # "kanbanStatusKey": 39 = status de atendimento
     # "kanbanStatusKey": 19 = status de validação 
@@ -153,7 +148,7 @@ def validar_chamado_acelerato(ticketKey):
 #         "texto": resposta,
 #         "privado": False
 #     } 
-#     response = requests.post(url, timeout=TIMEOUT_EM_SEGUNDOS, json=payload, headers=headers, auth=auth)
+#     response = requests.post(url, json=payload, headers=headers, auth=auth)
 
 #     if response.status_code in [200, 201, 204]:
 #         return print("[OK] Resposta enviada com sucesso!")
@@ -177,14 +172,18 @@ def responder_chamado_acelerato(ticketKey, resposta):
         "privado": False,
     } 
 
-    response = requests.post(url, timeout=TIMEOUT_EM_SEGUNDOS, json=payload, headers=headers, auth=auth)
+    response = requests.post(url, json=payload, headers=headers, auth=auth)
 
     #adicionado Status em Validação e Se adiciona como agente.
     validar_chamado_acelerato(ticketKey)
 
     if response.status_code in [200, 201]:
         print("resposta enviada")
-        return response.status_code
+        try:
+            return response.status_code()
+            # return response.json().get('ticketComentarioKey')
+        except:
+            return None
     else:
         print('Erro ao enviar', response.status_code)
         return None
@@ -205,7 +204,7 @@ def responder_com_imagem(ticketKey, texto, caminho_imagem):
         "usuarioKey": 822,
         "privado": False,
     }
-    response = requests.post(url, timeout=TIMEOUT_EM_SEGUNDOS, json=payload, headers={"Content-Type": "application/json"}, auth=HTTPBasicAuth(EMAIL, TOKEN))
+    response = requests.post(url, json=payload, headers={"Content-Type": "application/json"}, auth=HTTPBasicAuth(EMAIL, TOKEN))
     validar_chamado_acelerato(ticketKey)
     
     print("OK" if response.status_code in [200, 201] else f"Erro: {response.status_code}")
@@ -221,7 +220,7 @@ def concluir_chamado_acelerato(ticketKey):
     """
     url = f"{ACELERATO_URL}/api/publica/chamados/{ticketKey}"
     payload = {"kanbanStatus": {"kanbanStatusKey": 15}}
-    response = requests.put(url, timeout=TIMEOUT_EM_SEGUNDOS, auth=HTTPBasicAuth(EMAIL, TOKEN), headers={"Content-Type": "application/json"}, json=payload)
+    response = requests.put(url, auth=HTTPBasicAuth(EMAIL, TOKEN), headers={"Content-Type": "application/json"}, json=payload)
     return print(f"Status: {response.status_code}", "Chamado concluído!" if response.status_code in [200, 201, 204] else f"Erro: {response.text}")
 
 # concluir_chamado_acelerato(110426)
@@ -230,7 +229,7 @@ def consultar_anexoKey(ticketKey, tipo_arquivo):
     url = f"{ACELERATO_URL}/api/publica/tickets/{ticketKey}/anexos"
     url_comentário = f"{ACELERATO_URL}/api/publica/v2/tickets/{ticketKey}/comentarios"
     auth = HTTPBasicAuth(EMAIL, TOKEN)
-    response = requests.get(url, timeout=TIMEOUT_EM_SEGUNDOS, auth=auth)
+    response = requests.get(url, auth=auth)
 
     if response.status_code == 200:
         return [
@@ -261,7 +260,7 @@ def baixar_anexo(ticketKey, tipo_arquivo):
 
     for anexoKey, nome_arquivo in lista_arquivos:
         url = f"{ACELERATO_URL}/api/publica/tickets/{ticketKey}/anexos/{anexoKey}"
-        response = requests.get(url, timeout=TIMEOUT_EM_SEGUNDOS, auth=auth)
+        response = requests.get(url, auth=auth)
         
         if response.status_code == 200:
             caminho_arquivo = os.path.join(pasta_arquivos, nome_arquivo)
@@ -291,7 +290,7 @@ def anexar_arquivo_comentario(ticketKey, ticketComentarioKey, caminho_arquivo):
     with open(caminho_arquivo, "rb") as f:
         # O Acelerato geralmente espera o campo 'arquivo' ou 'file'
         files = {"arquivo": f}
-        response = requests.post(url, timeout=TIMEOUT_EM_SEGUNDOS, auth=auth, files=files)
+        response = requests.post(url, auth=auth, files=files)
         
     if response.status_code in [200, 201]:
         print(f"Arquivo {os.path.basename(caminho_arquivo)} anexado com sucesso!")
@@ -309,7 +308,7 @@ def anexar_arquivo_comentario(ticketKey, ticketComentarioKey, caminho_arquivo):
 def baixar_anexo_comentário(ticketKey, ticketComentarioKey, anexoKey,  nome_arquivo):
     url = f"{ACELERATO_URL}/api/publica/tickets/{ticketKey}/comentarios/{ticketComentarioKey}/anexos/{anexoKey}"
     auth = HTTPBasicAuth(EMAIL, TOKEN)
-    response = requests.get(url, timeout=TIMEOUT_EM_SEGUNDOS, auth=auth)
+    response = requests.get(url, auth=auth)
     if response.status_code == 200:
         with open(nome_arquivo, "wb") as f:
             f.write(response.content)
@@ -325,7 +324,7 @@ def consultar_informações_chamado(TICKET_KEY):
     url = f"{ACELERATO_URL}/api/publica/v2/chamados/{TICKET_KEY}"
     auth = HTTPBasicAuth(EMAIL, TOKEN)
 
-    response = requests.get(url, timeout=TIMEOUT_EM_SEGUNDOS, auth=auth)
+    response = requests.get(url, auth=auth)
 
     if response.status_code == 200:
         chamado = response.json()
@@ -340,8 +339,8 @@ def get_chamado_e_comentario(ticket_Key):
     url_comentário = f"{ACELERATO_URL}/api/publica/v2/tickets/{ticket_Key}/comentarios"
     auth = HTTPBasicAuth(EMAIL, TOKEN)
 
-    response_chamado = requests.get(url_chamado, timeout=TIMEOUT_EM_SEGUNDOS, auth=auth).json()
-    response_comentário = requests.get(url_comentário, timeout=TIMEOUT_EM_SEGUNDOS, auth=auth).json()
+    response_chamado = requests.get(url_chamado, auth=auth).json()
+    response_comentário = requests.get(url_comentário, auth=auth).json()
 
     
 
@@ -383,7 +382,7 @@ def get_comentarios_raw(ticket_key):
     """
     url = f"{ACELERATO_URL}/api/publica/v2/tickets/{ticket_key}/comentarios"
     auth = HTTPBasicAuth(EMAIL, TOKEN)
-    response = requests.get(url, timeout=TIMEOUT_EM_SEGUNDOS, auth=auth)
+    response = requests.get(url, auth=auth)
 
     if response.status_code != 200:
         print(f"Erro ao buscar comentários do chamado #{ticket_key}: {response.status_code}")
@@ -409,7 +408,7 @@ def verificar_status_chamado(ticket_key):
     """
     url = f"{ACELERATO_URL}/api/publica/v2/chamados/{ticket_key}"
     auth = HTTPBasicAuth(EMAIL, TOKEN)
-    response = requests.get(url, timeout=TIMEOUT_EM_SEGUNDOS, auth=auth)
+    response = requests.get(url, auth=auth)
 
     if response.status_code != 200:
         return {'deletado': True}
@@ -441,12 +440,12 @@ def get_arquivo_chamado_comentario(ticket_Key):
 
     def consultar_anexos():
         nonlocal auth, url_anexos
-        anexos = requests.get(url_anexos, timeout=TIMEOUT_EM_SEGUNDOS, auth=auth).json()
+        anexos = requests.get(url_anexos, auth=auth).json()
         return anexos
 
     def baixar_anexo( download_link, nome_arquivo):
         url = f"{ACELERATO_URL}/api/publica{download_link}"
-        response = requests.get(url, timeout=TIMEOUT_EM_SEGUNDOS, auth=auth)
+        response = requests.get(url, auth=auth)
         if response.status_code == 200:
             with open(nome_arquivo, "wb") as f:
                 f.write(response.content)
@@ -455,8 +454,8 @@ def get_arquivo_chamado_comentario(ticket_Key):
             print("Erro ao baixar arquivo:", response.status_code, response.text)
 
 
-    response_chamado = requests.get(url_chamado, timeout=TIMEOUT_EM_SEGUNDOS, auth=auth).json()
-    response_comentário = requests.get(url_comentário, timeout=TIMEOUT_EM_SEGUNDOS, auth=auth).json()
+    response_chamado = requests.get(url_chamado, auth=auth).json()
+    response_comentário = requests.get(url_comentário, auth=auth).json()
 
     df_lista = []
     palavras_chave= ['atualização ebook','atualização ebooks', 'atualizações ebooks']
@@ -497,7 +496,7 @@ def get_arquivo_chamado_comentario(ticket_Key):
                             df = df.head(70)
                         df_lista = df.to_markdown(index=False)
                         if total_linhas > 70:
-                            df_lista += f"\n\n[AVISO] Exibindo apenas 70 de {total_linhas} linhas. Planilha completa disponível no chamado."
+                            df_lista += f"\n\n⚠️ Exibindo apenas 50 de {total_linhas} linhas. Planilha completa disponível no chamado."
             except Exception as e:
                 print("Erro ao ler arquivos:", e)
             finally:

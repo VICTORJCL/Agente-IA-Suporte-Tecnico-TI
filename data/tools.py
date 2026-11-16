@@ -8,8 +8,6 @@ from .derruba_pack import derruba_pack_mainfun
 from .ferramenta_altera_senha_bluesoft import ChangePassword
 from .book_relatorio import BookRelatorio
 from .book_zanthus import BookZanthus
-from .carga_lock import CARGA_LOCK
-from agente.config import AVISO_DE_NOVA_TENTATIVA
 import threading
 from functools import wraps
 
@@ -24,6 +22,7 @@ def import_book_zanthus(ticket):
     - número do chamado
     '''.strip()
     book = BookZanthus()
+    book.main(ticket)
     return book.main(ticket)
 
 
@@ -52,16 +51,8 @@ def executar_async_e_responder_chamado(func):
     """
     @wraps(func)
     def wrapper(*args, **kwargs):
-        # Extrai o numero_chamado dos kwargs ou args
+        # Extrai o numero_chamado dos kwargs
         numero_chamado = kwargs.get('numero_chamado')
-        if not numero_chamado:
-            try:
-                import inspect
-                sig = inspect.signature(func)
-                bound = sig.bind_partial(*args, **kwargs)
-                numero_chamado = bound.arguments.get('numero_chamado')
-            except Exception:
-                pass
         
         def executar_e_responder():
             try:
@@ -78,20 +69,13 @@ def executar_async_e_responder_chamado(func):
                 if numero_chamado:
                     responder_chamado_acelerato_tool(
                         numero_chamado, 
-                        f"Erro ao executar: {str(e)}<br>{AVISO_DE_NOVA_TENTATIVA}"
+                        f"Erro ao executar cargas: {str(e)}"
                     )
         
-        carga_em_andamento = CARGA_LOCK.locked()
-
         # Inicia a thread
         thread = threading.Thread(target=executar_e_responder)
         thread.start()
-
-        if carga_em_andamento:
-            return (
-                "Já existe uma carga em andamento. Esta carga entrou na fila e será executada "
-                "automaticamente quando a anterior terminar; o chamado será respondido ao concluir."
-            )
+        
         return "Processo de carga iniciado em segundo plano"
     
     return wrapper
@@ -505,4 +489,4 @@ def derruba_pack(codigo_pack, option_pack, numero_chamado=None):
   * Na descrição do chamado ou no título estiver Derrubar Pack no Fim do Expediente de Hoje, use a ferramenta derruba_pack opção que gera agendamento que é option_pack=2
   '''.strip()
 
-  return derruba_pack_mainfun(codigo_pack, option_pack, numero_chamado=numero_chamado)
+  return derruba_pack_mainfun(codigo_pack, option_pack)

@@ -1,25 +1,15 @@
 [project]
-name = "ai-it-analyst-agent"
+name = "teams"
 version = "0.1.0"
-description = "Agente de suporte técnico do Acelerato"
+description = "Add your description here"
+readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "agno",
-    "openai",
-    "tavily-python",
-    "sqlalchemy>=2.0.46",
+    "aiohttp>=3.13.3",
     "fastapi>=0.128.7",
-    "uvicorn",
-    "python-dotenv",
-    "playwright",
+    "matplotlib>=3.10.8",
     "pandas>=3.0.2",
-    "openpyxl",
-    "tabulate",
-    "requests",
     "schedule>=1.2.2",
-]
-
-[dependency-groups]
-dev = [
-    "pytest>=9.1.1",
+    "sqlalchemy>=2.0.46",
+    "telebot>=0.0.5",
 ]
