@@ -97,4 +97,4 @@ class ChangePassword():
 
 
 # teste = ChangePassword()
-# teste.main(['08060166980'])
+# teste.main([''])
